@@ -1,0 +1,13 @@
+{
+  "name": "screen-link-helper",
+  "version": "1.0.0",
+  "description": "Performs remote mouse and keyboard input for the Screen Link page",
+  "main": "helper.js",
+  "scripts": {
+    "start": "node helper.js"
+  },
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.0",
+    "ws": "^8.18.0"
+  }
+}
