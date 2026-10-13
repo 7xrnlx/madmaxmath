@@ -80,6 +80,12 @@
     pointer-events:none;transition:opacity .6s;max-width:90vw;text-align:center;
   }
 
+  .hstat{font-size:.9rem;padding:8px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line);margin:0 0 1.2rem}
+  .hstat.ok{border-color:#4cc38a;color:#8fe3b8}
+  .hstat.no{border-color:#c9a14a;color:#e8c777}
+  #mode{align-self:center;font-size:.8rem;font-weight:700;padding:6px 10px;border-radius:999px;background:#000a;color:#e8c777}
+  #mode.on{color:#8fe3b8}
+
   /* Sharer: shows what the controller is doing (visible if they share this tab) */
   #ptr{
     position:fixed;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;
@@ -120,6 +126,7 @@
     <h1>Waiting for the other person</h1>
     <p class="sub">Give them this code. Your screen starts streaming as soon as they connect.</p>
     <div class="code" id="code">------</div>
+    <p class="hstat no">Checking for the helper…</p>
     <button class="btn ghost" id="cancel-share">Stop sharing</button>
   </div>
 </section>
@@ -129,6 +136,7 @@
   <div class="card">
     <h1>Your screen is being shared</h1>
     <p class="sub">The other person can see and control your screen. If they leave, sharing stops automatically.</p>
+    <p class="hstat no">Checking for the helper…</p>
     <button class="btn ghost" id="stop-share">Stop sharing</button>
   </div>
 </section>
@@ -160,6 +168,7 @@
   <video id="remote" autoplay playsinline muted tabindex="0"></video>
   <input id="kb" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Keyboard input">
   <div id="toolbar">
+    <span id="mode">View only</span>
     <button class="btn ghost" id="kbbtn">Keyboard</button>
     <button class="btn ghost" id="rot">Rotate</button>
     <button class="btn ghost" id="fs">Fullscreen</button>
@@ -177,6 +186,33 @@
   const canShare = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
 
   let peer, conn, call, stream, hb, lastSeen, ending = false, hintTimer;
+
+  /* Helper: a small program on the sharing computer that performs the real mouse/keyboard actions */
+  const HELPER_URL = 'ws://127.0.0.1:8787';
+  let helper = null, helperOK = false;
+
+  function setHelperStatus(ok){
+    helperOK = ok;
+    document.querySelectorAll('.hstat').forEach(el => {
+      el.className = 'hstat ' + (ok ? 'ok' : 'no');
+      el.textContent = ok
+        ? 'Helper connected. The other person controls this computer for real.'
+        : 'Helper not running. The other person can only view and point. See the setup steps to enable control.';
+    });
+    send({t:'status', control:ok});
+  }
+
+  function connectHelper(){
+    try{
+      helper = new WebSocket(HELPER_URL);
+      helper.onopen = () => setHelperStatus(true);
+      helper.onclose = helper.onerror = () => { if(helper){ helper = null; setHelperStatus(false); } };
+    }catch(e){ helper = null; setHelperStatus(false); }
+  }
+
+  function forwardToHelper(d){
+    if(helper && helper.readyState === 1) helper.send(JSON.stringify(d));
+  }
 
   // Phones and tablets can't share their screen from a browser, so say so up front
   if(!canShare){
@@ -201,6 +237,9 @@
     clearInterval(hb); clearTimeout(hintTimer);
     try{ conn && conn.close(); }catch(e){}
     try{ call && call.close(); }catch(e){}
+    try{ if(helper){ const h = helper; helper = null; h.close(); } }catch(e){}
+    helperOK = false;
+    $('mode').textContent = 'View only'; $('mode').classList.remove('on');
     if(stream) stream.getTracks().forEach(t => t.stop());
     try{ peer && peer.destroy(); }catch(e){}
     peer = conn = call = stream = null;
@@ -232,7 +271,18 @@
     lastSeen = Date.now();
     if(!d || d.t === 'ping') return;
     if(d.t === 'bye') return reset('The other person left.');
-    if(d.t === 'input') showRemoteInput(d);
+    if(d.t === 'input'){ showRemoteInput(d); forwardToHelper(d); }
+    if(d.t === 'status'){
+      const on = !!d.control;
+      $('mode').textContent = on ? 'Controlling' : 'View only';
+      $('mode').classList.toggle('on', on);
+      $('hint').textContent = on
+        ? 'Tap = click · Drag = drag · Hold = right-click · Two fingers = scroll'
+        : 'View only: the sharing computer isn\'t running the helper, so control is off.';
+      $('hint').style.opacity = 1;
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => $('hint').style.opacity = 0, 6000);
+    }
   }
 
   // Tab closed or page left: tell the other side right away
@@ -255,7 +305,7 @@
   function openSharerPeer(){
     const code = String(Math.floor(100000 + Math.random()*900000));
     peer = new Peer(PREFIX + code);
-    peer.on('open', () => { $('code').textContent = code; show('share-wait'); });
+    peer.on('open', () => { $('code').textContent = code; show('share-wait'); connectHelper(); });
     peer.on('error', e => {
       if(e.type === 'unavailable-id'){ try{ peer.destroy(); }catch(_){} openSharerPeer(); }
       else reset('Connection error: ' + e.type);
@@ -265,6 +315,7 @@
       conn = c; setupConn();
       c.on('open', () => {
         call = peer.call(c.peer, stream);
+        send({t:'status', control:helperOK});
         show('share-live');
         startHeartbeat();
       });
