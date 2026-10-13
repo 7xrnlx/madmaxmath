@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#14171c">
 <title>Screen Link</title>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
@@ -10,58 +13,72 @@
     --bg:#14171c; --panel:#1d2229; --line:#323a45; --text:#e9edf2; --muted:#98a3b1;
     --share:#3aa6ff; --control:#ffb347;
   }
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;overscroll-behavior:none}
   body{
-    background:var(--bg);color:var(--text);
+    min-height:100dvh;background:var(--bg);color:var(--text);
     font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
     display:flex;align-items:center;justify-content:center;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   .view[hidden]{display:none}
   .view{width:min(720px,92vw);text-align:left}
-  h1{font-size:2.2rem;margin:0 0 .4rem;letter-spacing:-.02em}
-  p.sub{color:var(--muted);margin:0 0 2rem;max-width:46ch;line-height:1.5}
+  h1{font-size:clamp(1.5rem,6vw,2.2rem);margin:0 0 .4rem;letter-spacing:-.02em}
+  p.sub{color:var(--muted);margin:0 0 1.6rem;max-width:46ch;line-height:1.5}
   .choices{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:560px){.choices{grid-template-columns:1fr}}
   .choice{
     background:var(--panel);border:2px solid var(--line);border-radius:14px;
-    color:var(--text);padding:28px 22px;text-align:left;cursor:pointer;font:inherit;
-    transition:border-color .15s, transform .15s;
+    color:var(--text);padding:26px 22px;text-align:left;cursor:pointer;font:inherit;
+    min-height:96px;transition:border-color .15s, transform .15s;
   }
   .choice:hover{transform:translateY(-2px)}
   .choice:focus-visible,.btn:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:3px}
   .choice b{display:block;font-size:1.25rem;margin-bottom:.4rem}
   .choice span{color:var(--muted);font-size:.95rem;line-height:1.45}
+  .choice.unsupported{opacity:.55}
   #btn-share:hover{border-color:var(--share)}
   #btn-control:hover{border-color:var(--control)}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px}
-  .code{font-size:3rem;letter-spacing:.25em;font-weight:700;color:var(--share);margin:.5rem 0 1rem;font-variant-numeric:tabular-nums}
-  input{
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:clamp(18px,5vw,28px)}
+  .code{font-size:clamp(2.2rem,11vw,3rem);letter-spacing:.2em;font-weight:700;color:var(--share);margin:.5rem 0 1rem;font-variant-numeric:tabular-nums}
+  input.codein{
     font:inherit;font-size:1.8rem;letter-spacing:.2em;width:100%;padding:12px 16px;
     background:var(--bg);color:var(--text);border:2px solid var(--line);border-radius:10px;
     text-align:center;margin:1rem 0;
   }
   .btn{
-    font:inherit;font-weight:700;border:0;border-radius:10px;padding:12px 22px;cursor:pointer;
-    background:var(--control);color:#1a1200;
+    font:inherit;font-weight:700;border:0;border-radius:10px;padding:14px 22px;cursor:pointer;
+    background:var(--control);color:#1a1200;min-height:46px;
   }
   .btn.ghost{background:transparent;color:var(--text);border:2px solid var(--line)}
   .row{display:flex;gap:12px;flex-wrap:wrap}
   .notice{
-    position:fixed;top:16px;left:50%;transform:translateX(-50%);
-    background:#2b3340;border:1px solid var(--line);padding:10px 18px;border-radius:999px;
-    font-size:.95rem;z-index:50;box-shadow:0 4px 18px #0006;
+    position:fixed;top:calc(16px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+    background:#2b3340;border:1px solid var(--line);padding:10px 18px;border-radius:18px;
+    font-size:.95rem;z-index:60;box-shadow:0 4px 18px #0006;max-width:92vw;text-align:center;
   }
   .notice[hidden]{display:none}
 
   /* Controller: the shared screen fills the whole window */
-  #ctrl-live{position:fixed;inset:0;width:100%;background:#000;z-index:10;text-align:initial}
-  #remote{width:100%;height:100%;object-fit:contain;display:block;background:#000;outline:none;cursor:crosshair}
+  #ctrl-live{position:fixed;inset:0;width:100%;height:100dvh;background:#000;z-index:10;padding:0;touch-action:none}
+  #remote{
+    width:100%;height:100%;object-fit:contain;display:block;background:#000;outline:none;cursor:crosshair;
+    touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  }
   #toolbar{
-    position:fixed;top:10px;right:10px;display:flex;gap:8px;opacity:.15;transition:opacity .2s;z-index:12
+    position:fixed;top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right));
+    display:flex;gap:8px;opacity:.15;transition:opacity .2s;z-index:12
   }
   #toolbar:hover,#toolbar:focus-within{opacity:1}
-  #toolbar .btn{padding:8px 14px;font-size:.85rem}
+  @media (hover:none){#toolbar{opacity:.6}}
+  #toolbar .btn{padding:8px 14px;font-size:.85rem;min-height:40px}
+  #toolbar .btn.ghost{background:#000a}
+  #kb{position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0;font-size:16px}
+  #hint{
+    position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);
+    background:#000b;color:#fff;font-size:.85rem;padding:8px 14px;border-radius:14px;z-index:12;
+    pointer-events:none;transition:opacity .6s;max-width:90vw;text-align:center;
+  }
 
   /* Sharer: shows what the controller is doing (visible if they share this tab) */
   #ptr{
@@ -88,11 +105,11 @@
   <div class="choices">
     <button class="choice" id="btn-share">
       <b>Share my screen</b>
-      <span>Pick your whole screen and wait for the other person to join.</span>
+      <span id="share-desc">Pick your whole screen and wait for the other person to join.</span>
     </button>
     <button class="choice" id="btn-control">
       <b>Control a screen</b>
-      <span>Enter the code from the sharing person to view and control their screen.</span>
+      <span>Enter the code from the sharing person to view and control their screen. Works with touch.</span>
     </button>
   </div>
 </section>
@@ -121,7 +138,7 @@
   <div class="card">
     <h1>Enter the code</h1>
     <p class="sub">Ask the sharing person for their 6-digit code.</p>
-    <input id="code-input" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="off">
+    <input class="codein" id="code-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="off">
     <div class="row">
       <button class="btn" id="connect">Connect</button>
       <button class="btn ghost" id="back">Back</button>
@@ -141,10 +158,14 @@
 <!-- CONTROLLER: live, full window -->
 <section class="view" id="ctrl-live" hidden>
   <video id="remote" autoplay playsinline muted tabindex="0"></video>
+  <input id="kb" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Keyboard input">
   <div id="toolbar">
-    <button class="btn ghost" id="fs" style="background:#000a">Fullscreen</button>
+    <button class="btn ghost" id="kbbtn">Keyboard</button>
+    <button class="btn ghost" id="rot">Rotate</button>
+    <button class="btn ghost" id="fs">Fullscreen</button>
     <button class="btn" id="leave">Disconnect</button>
   </div>
+  <div id="hint">Tap = click · Drag = drag · Hold = right-click · Two fingers = scroll</div>
 </section>
 
 <script>
@@ -153,8 +174,15 @@
   const $ = id => document.getElementById(id);
   const views = ['home','share-wait','share-live','ctrl-enter','ctrl-wait','ctrl-live'];
   const video = $('remote');
+  const canShare = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
 
-  let peer, conn, call, stream, hb, lastSeen, ending = false;
+  let peer, conn, call, stream, hb, lastSeen, ending = false, hintTimer;
+
+  // Phones and tablets can't share their screen from a browser, so say so up front
+  if(!canShare){
+    $('btn-share').classList.add('unsupported');
+    $('share-desc').textContent = 'Not available on this device. Use a computer to share, and use this device to control.';
+  }
 
   function show(id){ views.forEach(v => $(v).hidden = v !== id); }
 
@@ -170,7 +198,7 @@
   // Return everything to the two-button start screen
   function reset(msg){
     if(ending) return; ending = true;
-    clearInterval(hb);
+    clearInterval(hb); clearTimeout(hintTimer);
     try{ conn && conn.close(); }catch(e){}
     try{ call && call.close(); }catch(e){}
     if(stream) stream.getTracks().forEach(t => t.stop());
@@ -178,6 +206,7 @@
     peer = conn = call = stream = null;
     video.srcObject = null;
     $('ptr').style.display = 'none';
+    try{ screen.orientation && screen.orientation.unlock && screen.orientation.unlock(); }catch(e){}
     if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
     show('home');
     notice(msg);
@@ -211,6 +240,7 @@
 
   /* ---------------- SHARER ---------------- */
   $('btn-share').onclick = async () => {
+    if(!canShare){ notice('This device can\'t share its screen. Use a computer to share, and control from here.'); return; }
     try{
       stream = await navigator.mediaDevices.getDisplayMedia({
         video:{ displaySurface:'monitor', frameRate:30 }, audio:false
@@ -244,6 +274,7 @@
 
   // Shows the controller's pointer on the sharer's page (real OS control isn't possible from a browser)
   function showRemoteInput(d){
+    if(d.k === 'key') return;
     const p = $('ptr');
     const x = d.x * innerWidth, y = d.y * innerHeight;
     p.style.display = 'block'; p.style.left = x + 'px'; p.style.top = y + 'px';
@@ -263,8 +294,8 @@
   $('connect').onclick = () => {
     const code = $('code-input').value.trim();
     if(code.length !== 6){ notice('Enter the 6-digit code.'); return; }
-    // Go fullscreen now, while the click still counts as a user gesture
-    document.documentElement.requestFullscreen?.().catch(()=>{});
+    // Go fullscreen now, while the click still counts as a user gesture (not supported on iPhone; page still fills the window)
+    try{ const p = document.documentElement.requestFullscreen?.(); p && p.catch(()=>{}); }catch(e){}
     show('ctrl-wait');
 
     peer = new Peer();
@@ -276,7 +307,12 @@
     peer.on('call', c => {
       call = c;
       c.answer();
-      c.on('stream', s => { video.srcObject = s; video.play().catch(()=>{}); show('ctrl-live'); video.focus(); });
+      c.on('stream', s => {
+        video.srcObject = s; video.play().catch(()=>{});
+        show('ctrl-live'); video.focus();
+        $('hint').style.opacity = 1;
+        hintTimer = setTimeout(() => $('hint').style.opacity = 0, 5000);
+      });
       c.on('close', () => reset('Sharing ended.'));
     });
     peer.on('error', e => {
@@ -284,9 +320,22 @@
     });
   };
   $('cancel-ctrl').onclick = $('leave').onclick = () => { send({t:'bye'}); reset('Disconnected.'); };
-  $('fs').onclick = () => document.documentElement.requestFullscreen?.().catch(()=>{});
+  $('fs').onclick = () => {
+    if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+    else { try{ document.documentElement.requestFullscreen?.().catch(()=>notice('Fullscreen isn\'t supported here.')); }catch(e){} }
+  };
 
-  // Map a mouse position to 0–1 coordinates of the shared screen (accounts for letterboxing)
+  // Turn the view: lock to the opposite orientation (needs fullscreen on Android). Otherwise just rotate the device.
+  $('rot').onclick = async () => {
+    const type = (screen.orientation && screen.orientation.type) || '';
+    const want = type.startsWith('portrait') ? 'landscape' : 'portrait';
+    try{
+      if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      await screen.orientation.lock(want);
+    }catch(e){ notice('Rotate your device to turn the view. The screen resizes automatically.'); }
+  };
+
+  // Map a screen position to 0–1 coordinates of the shared screen (accounts for letterboxing and rotation)
   function norm(e){
     const r = video.getBoundingClientRect(), vw = video.videoWidth, vh = video.videoHeight;
     if(!vw || !vh) return null;
@@ -295,6 +344,8 @@
     const y = (e.clientY - r.top  - (r.height - h)/2) / h;
     return (x<0||y<0||x>1||y>1) ? null : {x,y};
   }
+
+  /* Mouse (desktop) */
   let lastMove = 0;
   video.addEventListener('mousemove', e => {
     const now = performance.now(); if(now - lastMove < 33) return; lastMove = now;
@@ -305,6 +356,98 @@
   video.addEventListener('wheel',     e => { e.preventDefault(); const p = norm(e); if(p) send({t:'input', k:'wheel', dy:e.deltaY, ...p}); }, {passive:false});
   video.addEventListener('contextmenu', e => e.preventDefault());
   video.addEventListener('keydown', e => { e.preventDefault(); send({t:'input', k:'key', key:e.key, x:.5, y:.5}); });
+
+  /* Touch (phones & tablets)
+     1 finger tap        -> left click
+     1 finger drag       -> press and drag
+     1 finger long-press -> right click
+     2 fingers drag      -> scroll                                  */
+  let touch = null, lastTwoY = 0, lastPt = null;
+  const MOVE_PX = 10, LONG_MS = 500;
+
+  function endTouch(){
+    if(touch){ clearTimeout(touch.timer); touch = null; }
+  }
+
+  video.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if(e.touches.length === 1){
+      const t = e.touches[0], p = norm(t);
+      touch = { sx:t.clientX, sy:t.clientY, p, moved:false, long:false };
+      lastPt = p;
+      if(p) send({t:'input', k:'move', ...p});
+      touch.timer = setTimeout(() => {
+        if(touch && !touch.moved && touch.p){
+          touch.long = true;
+          if(navigator.vibrate) navigator.vibrate(25);
+          send({t:'input', k:'down', b:2, ...touch.p});
+          send({t:'input', k:'up',   b:2, ...touch.p});
+        }
+      }, LONG_MS);
+    } else if(e.touches.length === 2){
+      // switching to scroll: release any drag in progress
+      if(touch && touch.moved && !touch.long && lastPt) send({t:'input', k:'up', b:0, ...lastPt});
+      endTouch();
+      touch = { scroll:true };
+      lastTwoY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    }
+  }, {passive:false});
+
+  video.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if(!touch) return;
+    if(touch.scroll && e.touches.length >= 2){
+      const y = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const p = norm({clientX:(e.touches[0].clientX+e.touches[1].clientX)/2, clientY:y});
+      const dy = (lastTwoY - y) * 3;       // finger up = scroll down
+      lastTwoY = y;
+      if(p && Math.abs(dy) > 0.5) send({t:'input', k:'wheel', dy, ...p});
+      return;
+    }
+    if(touch.scroll || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if(!touch.moved && Math.hypot(t.clientX - touch.sx, t.clientY - touch.sy) > MOVE_PX){
+      touch.moved = true; clearTimeout(touch.timer);
+      if(!touch.long && touch.p) send({t:'input', k:'down', b:0, ...touch.p});   // start drag where the finger first landed
+    }
+    if(touch.moved && !touch.long){
+      const now = performance.now(); if(now - lastMove < 33) return; lastMove = now;
+      const p = norm(t); if(p){ lastPt = p; send({t:'input', k:'move', ...p}); }
+    }
+  }, {passive:false});
+
+  video.addEventListener('touchend', e => {
+    e.preventDefault();
+    if(touch && !touch.scroll && !touch.long){
+      if(touch.moved){
+        if(lastPt) send({t:'input', k:'up', b:0, ...lastPt});
+      } else if(touch.p){
+        send({t:'input', k:'down', b:0, ...touch.p});
+        send({t:'input', k:'up',   b:0, ...touch.p});
+      }
+    }
+    if(e.touches.length === 0) endTouch();
+  }, {passive:false});
+
+  video.addEventListener('touchcancel', () => {
+    if(touch && touch.moved && !touch.long && lastPt) send({t:'input', k:'up', b:0, ...lastPt});
+    endTouch();
+  });
+
+  /* On-screen keyboard for phones: focus a hidden input so the soft keyboard opens */
+  const kb = $('kb');
+  const resetKb = () => { kb.value = ' '; kb.setSelectionRange(1,1); };
+  $('kbbtn').onclick = () => { resetKb(); kb.focus(); };
+  kb.addEventListener('input', e => {
+    if(e.inputType === 'deleteContentBackward') send({t:'input', k:'key', key:'Backspace', x:.5, y:.5});
+    else if(e.data) for(const ch of e.data) send({t:'input', k:'key', key:ch, x:.5, y:.5});
+    resetKb();
+  });
+  kb.addEventListener('keydown', e => {
+    if(['Enter','Tab','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
+      e.preventDefault(); send({t:'input', k:'key', key:e.key, x:.5, y:.5});
+    }
+  });
 })();
 </script>
 </body>
